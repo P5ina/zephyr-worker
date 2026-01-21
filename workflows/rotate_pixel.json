@@ -1,0 +1,9 @@
+{
+  "_comment": "PLACEHOLDER - Replace with actual TripoSR + Pixelate workflow exported from ComfyUI",
+  "workflow_type": "rotate_pixel",
+  "description": "TripoSR rotation workflow for pixel art (with pixelization + color quantization)",
+  "parameters": {
+    "pixel_resolution": "32 | 64 | 128",
+    "color_count": "8 | 16 | 32 | 64"
+  }
+}

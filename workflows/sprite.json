@@ -1,0 +1,90 @@
+{
+  "unet_loader": {
+    "inputs": {
+      "unet_name": "flux1-schnell.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader"
+  },
+  "clip_loader": {
+    "inputs": {
+      "clip_name1": "clip_l.safetensors",
+      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader"
+  },
+  "vae_loader": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
+  "latent": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage"
+  },
+  "positive_prompt": {
+    "inputs": {
+      "text": "",
+      "clip": ["clip_loader", 0]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "guidance": {
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": ["positive_prompt", 0]
+    },
+    "class_type": "FluxGuidance"
+  },
+  "sampler": {
+    "inputs": {
+      "seed": 0,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": ["unet_loader", 0],
+      "positive": ["guidance", 0],
+      "negative": ["positive_prompt", 0],
+      "latent_image": ["latent", 0]
+    },
+    "class_type": "KSampler"
+  },
+  "vae_decode": {
+    "inputs": {
+      "samples": ["sampler", 0],
+      "vae": ["vae_loader", 0]
+    },
+    "class_type": "VAEDecode"
+  },
+  "rmbg": {
+    "inputs": {
+      "model": "RMBG-2.0",
+      "sensitivity": 1,
+      "process_res": 1024,
+      "mask_blur": 0,
+      "mask_offset": 0,
+      "invert_output": false,
+      "refine_foreground": false,
+      "background": "Alpha",
+      "background_color": "#222222",
+      "image": ["vae_decode", 0]
+    },
+    "class_type": "RMBG"
+  },
+  "save_image": {
+    "inputs": {
+      "filename_prefix": "sprite",
+      "images": ["rmbg", 0]
+    },
+    "class_type": "SaveImage"
+  }
+}
