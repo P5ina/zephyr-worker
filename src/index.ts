@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { eq, sql } from 'drizzle-orm';
 import { db, rotationJob, user, type RotationJob } from './db.js';
 import { ComfyUIClient, type ComfyUIWorkflow } from './comfyui.js';
