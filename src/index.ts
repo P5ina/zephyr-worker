@@ -9,13 +9,14 @@ const BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 const BLOB_API_URL = 'https://blob.vercel-storage.com';
 
 // Workflow paths
-const WORKFLOW_DIR = process.env.WORKFLOW_DIR || '/workspace/zephyr-worker';
+const WORKFLOW_DIR = process.env.WORKFLOW_DIR || './workflows';
 
 // Load workflows
 function loadWorkflow(name: string): ComfyUIWorkflow | null {
 	const paths = [
 		`${WORKFLOW_DIR}/${name}.json`,
 		`${WORKFLOW_DIR}/workflow_${name}.json`,
+		`${WORKFLOW_DIR}/rotate_${name}.json`,
 	];
 
 	for (const path of paths) {
@@ -33,7 +34,7 @@ function loadWorkflow(name: string): ComfyUIWorkflow | null {
 }
 
 const workflows: Record<string, ComfyUIWorkflow | null> = {
-	rotate: loadWorkflow('workflow'),
+	rotate: loadWorkflow('regular') || loadWorkflow('workflow'),
 	sprite: loadWorkflow('sprite'),
 	texture: loadWorkflow('texture'),
 };
