@@ -55,7 +55,7 @@ async function uploadToBlob(data: Buffer, filename: string): Promise<string> {
 			'x-api-version': '7',
 			'x-content-type': 'image/png',
 		},
-		body: data,
+		body: new Uint8Array(data),
 	});
 
 	if (!response.ok) {
