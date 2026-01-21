@@ -5,7 +5,7 @@ const COMFYUI_URL = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
 const COMFYUI_WS_URL = COMFYUI_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
 export interface ProgressCallback {
-	(progress: number, stage: string, nodeId?: string): void;
+	(progress: number, stage: string): void;
 }
 
 export interface ComfyUIWorkflow {
@@ -15,7 +15,7 @@ export interface ComfyUIWorkflow {
 	};
 }
 
-// Node class types mapped to human-readable stage names
+// Human-readable stage names for node types
 const NODE_STAGES: Record<string, string> = {
 	'UNETLoader': 'Loading Flux model',
 	'DualCLIPLoader': 'Loading CLIP',
@@ -33,38 +33,14 @@ const NODE_STAGES: Record<string, string> = {
 	'SaveImage': 'Saving image',
 };
 
-// Estimate progress based on node execution order
-const NODE_WEIGHTS: Record<string, number> = {
-	'UNETLoader': 5,
-	'DualCLIPLoader': 2,
-	'VAELoader': 1,
-	'CLIPTextEncode': 1,
-	'EmptyLatentImage': 1,
-	'FluxGuidance': 1,
-	'KSampler': 15, // Heavy - image generation
-	'VAEDecode': 2,
-	'RMBG': 5,
-	'LoadTripoSRModel': 5,
-	'ImageTo3DMesh': 25, // Heavy - 3D reconstruction
-	'RenderMesh8Directions': 10,
-	'ControlNetLoader': 2,
-	'ControlNetApplyAdvanced': 3,
-	'Canny': 2,
-	'VAEEncode': 2,
-	'SaveImage': 1,
-};
-
 export class ComfyUIClient {
 	private ws: WebSocket | null = null;
 	private clientId: string;
 	private promptId: string | null = null;
 	private onProgress: ProgressCallback | null = null;
+	private workflow: ComfyUIWorkflow | null = null;
 	private executedNodes: Set<string> = new Set();
-	private totalWeight: number = 0;
-	private executedWeight: number = 0;
-	private currentNodeType: string = '';
-	private samplerProgress: number = 0;
-	private samplerMax: number = 0;
+	private totalNodes: number = 0;
 
 	constructor() {
 		this.clientId = nanoid();
@@ -105,72 +81,57 @@ export class ComfyUIClient {
 		}
 	}
 
+	private getNodeClassType(nodeId: string): string {
+		if (!this.workflow) return '';
+		// Handle composite node IDs like "74:62"
+		const baseId = nodeId.split(':')[0];
+		return this.workflow[baseId]?.class_type || '';
+	}
+
 	private handleMessage(data: string): void {
 		try {
 			const msg = JSON.parse(data);
 			const { type, data: payload } = msg;
 
 			switch (type) {
-				case 'status':
-					// Queue status update
-					break;
-
 				case 'execution_start':
 					if (payload.prompt_id === this.promptId) {
-						console.log(`[ComfyUI] Execution started: ${this.promptId}`);
+						console.log(`[ComfyUI] Execution started`);
 						this.executedNodes.clear();
-						this.executedWeight = 0;
-						this.reportProgress('Starting...');
+						this.reportProgress(0, 'Starting...');
 					}
 					break;
 
 				case 'execution_cached':
-					// Nodes that were cached (already computed)
 					if (payload.prompt_id === this.promptId && payload.nodes) {
 						for (const nodeId of payload.nodes) {
-							this.executedNodes.add(nodeId);
+							this.executedNodes.add(nodeId.split(':')[0]);
 						}
+						this.updateProgress();
 					}
 					break;
 
 				case 'executing':
-					if (payload.prompt_id === this.promptId) {
-						if (payload.node === null) {
-							// Execution complete
-							console.log('[ComfyUI] Execution complete');
-							this.reportProgress('Complete', 100);
-						} else {
-							// New node executing
-							this.currentNodeType = '';
-							this.samplerProgress = 0;
-							this.samplerMax = 0;
-						}
+					if (payload.prompt_id === this.promptId && payload.node === null) {
+						console.log('[ComfyUI] Execution complete');
+						this.reportProgress(100, 'Complete');
 					}
 					break;
 
 				case 'executed':
 					if (payload.prompt_id === this.promptId && payload.node) {
-						this.executedNodes.add(payload.node);
-						const nodeType = payload.output?.class_type || this.currentNodeType;
-						const weight = NODE_WEIGHTS[nodeType] || 1;
-						this.executedWeight += weight;
-						const progress = Math.min(99, Math.round((this.executedWeight / this.totalWeight) * 100));
-						const stage = NODE_STAGES[nodeType] || nodeType || 'Processing';
-						console.log(`[ComfyUI] Node executed: ${payload.node} (${nodeType}) - ${progress}%`);
-						this.reportProgress(stage, progress);
+						const baseId = payload.node.split(':')[0];
+						this.executedNodes.add(baseId);
+						this.updateProgress(baseId);
 					}
 					break;
 
 				case 'progress':
-					// Sampler step progress
 					if (payload.prompt_id === this.promptId) {
-						this.samplerProgress = payload.value;
-						this.samplerMax = payload.max;
-						const stepInfo = `Step ${payload.value}/${payload.max}`;
-						const baseProgress = Math.round((this.executedWeight / this.totalWeight) * 100);
-						const stepProgress = (payload.value / payload.max) * (NODE_WEIGHTS['KSampler'] / this.totalWeight) * 100;
+						const baseProgress = Math.round((this.executedNodes.size / this.totalNodes) * 100);
+						const stepProgress = (payload.value / payload.max) * (100 / this.totalNodes);
 						const progress = Math.min(99, Math.round(baseProgress + stepProgress));
-						this.reportProgress(`Generating image (${stepInfo})`, progress);
+						this.reportProgress(progress, `Generating (step ${payload.value}/${payload.max})`);
 					}
 					break;
 
@@ -180,30 +141,36 @@ export class ComfyUIClient {
 					}
 					break;
 			}
-		} catch (err) {
+		} catch {
 			// Ignore parse errors for binary messages
 		}
 	}
 
-	private reportProgress(stage: string, progress?: number): void {
+	private updateProgress(lastNodeId?: string): void {
+		const progress = Math.min(99, Math.round((this.executedNodes.size / this.totalNodes) * 100));
+		let stage = 'Processing...';
+
+		if (lastNodeId) {
+			const classType = this.getNodeClassType(lastNodeId);
+			stage = NODE_STAGES[classType] || classType || 'Processing...';
+		}
+
+		this.reportProgress(progress, stage);
+	}
+
+	private reportProgress(progress: number, stage: string): void {
 		if (this.onProgress) {
-			const p = progress ?? Math.min(99, Math.round((this.executedWeight / this.totalWeight) * 100));
-			this.onProgress(p, stage);
+			this.onProgress(progress, stage);
 		}
 	}
 
 	async queuePrompt(workflow: ComfyUIWorkflow, onProgress?: ProgressCallback): Promise<string> {
+		this.workflow = workflow;
 		this.onProgress = onProgress || null;
 		this.executedNodes.clear();
-		this.executedWeight = 0;
+		this.totalNodes = Object.keys(workflow).length;
 
-		// Calculate total weight from workflow
-		this.totalWeight = 0;
-		for (const node of Object.values(workflow)) {
-			const weight = NODE_WEIGHTS[node.class_type] || 1;
-			this.totalWeight += weight;
-		}
-		console.log(`[ComfyUI] Total workflow weight: ${this.totalWeight}`);
+		console.log(`[ComfyUI] Total nodes in workflow: ${this.totalNodes}`);
 
 		const response = await fetch(`${COMFYUI_URL}/prompt`, {
 			method: 'POST',
