@@ -41,6 +41,25 @@ const NODE_STAGES: Record<string, string> = {
 	'SaveImage': 'Saving image',
 };
 
+// Approximate execution time weights for node types (relative)
+const NODE_WEIGHTS: Record<string, number> = {
+	'KSampler': 30,           // Main generation - heaviest
+	'ImageTo3DMesh': 20,      // 3D mesh generation
+	'RenderMesh8Directions': 15,
+	'RMBG': 5,
+	'VAEDecode': 3,
+	'VAEEncode': 2,
+	'UNETLoader': 2,
+	'LoadTripoSRModel': 2,
+	'ControlNetLoader': 1,
+	'DualCLIPLoader': 1,
+	'VAELoader': 1,
+	'CLIPTextEncode': 1,
+	'Canny': 1,
+	'SaveImage': 1,
+	'PreviewImage': 1,
+};
+
 export class ComfyUIClient {
 	private ws: WebSocket | null = null;
 	private clientId: string;
@@ -49,10 +68,17 @@ export class ComfyUIClient {
 	private workflow: ComfyUIWorkflow | null = null;
 	private executedNodes: Set<string> = new Set();
 	private totalNodes: number = 0;
+	private totalWeight: number = 0;
+	private completedWeight: number = 0;
 	private startTime: number = 0;
 
 	constructor() {
 		this.clientId = nanoid();
+	}
+
+	private getNodeWeight(nodeId: string): number {
+		const classType = this.getNodeClassType(nodeId);
+		return NODE_WEIGHTS[classType] || 1;
 	}
 
 	async connect(): Promise<void> {
@@ -107,6 +133,7 @@ export class ComfyUIClient {
 					if (payload.prompt_id === this.promptId) {
 						console.log(`[ComfyUI] Execution started`);
 						this.executedNodes.clear();
+						this.completedWeight = 0;
 						this.reportProgress(0, 'Starting...');
 					}
 					break;
@@ -114,7 +141,11 @@ export class ComfyUIClient {
 				case 'execution_cached':
 					if (payload.prompt_id === this.promptId && payload.nodes) {
 						for (const nodeId of payload.nodes) {
-							this.executedNodes.add(nodeId.split(':')[0]);
+							const baseId = nodeId.split(':')[0];
+							if (!this.executedNodes.has(baseId)) {
+								this.executedNodes.add(baseId);
+								this.completedWeight += this.getNodeWeight(baseId);
+							}
 						}
 						this.updateProgress();
 					}
@@ -130,16 +161,24 @@ export class ComfyUIClient {
 				case 'executed':
 					if (payload.prompt_id === this.promptId && payload.node) {
 						const baseId = payload.node.split(':')[0];
-						this.executedNodes.add(baseId);
+						if (!this.executedNodes.has(baseId)) {
+							this.executedNodes.add(baseId);
+							this.completedWeight += this.getNodeWeight(baseId);
+						}
 						this.updateProgress(baseId);
 					}
 					break;
 
 				case 'progress':
 					if (payload.prompt_id === this.promptId) {
-						const baseProgress = Math.round((this.executedNodes.size / this.totalNodes) * 100);
-						const stepProgress = (payload.value / payload.max) * (100 / this.totalNodes);
-						const progress = Math.min(99, Math.round(baseProgress + stepProgress));
+						// KSampler progress - use weighted calculation
+						const kSamplerWeight = NODE_WEIGHTS['KSampler'] || 30;
+						const stepFraction = payload.value / payload.max;
+						const currentStepWeight = kSamplerWeight * stepFraction;
+						const totalProgress = this.totalWeight > 0
+							? ((this.completedWeight + currentStepWeight) / this.totalWeight) * 100
+							: ((this.executedNodes.size / this.totalNodes) * 100);
+						const progress = Math.min(99, Math.round(totalProgress));
 						this.reportProgress(progress, `Generating (step ${payload.value}/${payload.max})`);
 					}
 					break;
@@ -156,7 +195,10 @@ export class ComfyUIClient {
 	}
 
 	private updateProgress(lastNodeId?: string): void {
-		const progress = Math.min(99, Math.round((this.executedNodes.size / this.totalNodes) * 100));
+		// Use weighted progress for more accurate estimates
+		const progress = this.totalWeight > 0
+			? Math.min(99, Math.round((this.completedWeight / this.totalWeight) * 100))
+			: Math.min(99, Math.round((this.executedNodes.size / this.totalNodes) * 100));
 		let stage = 'Processing...';
 
 		if (lastNodeId) {
@@ -193,9 +235,16 @@ export class ComfyUIClient {
 		this.onProgress = onProgress || null;
 		this.executedNodes.clear();
 		this.totalNodes = Object.keys(workflow).length;
+		this.completedWeight = 0;
 		this.startTime = Date.now();
 
-		console.log(`[ComfyUI] Total nodes in workflow: ${this.totalNodes}`);
+		// Calculate total weight for weighted progress
+		this.totalWeight = 0;
+		for (const nodeId of Object.keys(workflow)) {
+			this.totalWeight += this.getNodeWeight(nodeId);
+		}
+
+		console.log(`[ComfyUI] Total nodes: ${this.totalNodes}, total weight: ${this.totalWeight}`);
 
 		const response = await fetch(`${COMFYUI_URL}/prompt`, {
 			method: 'POST',
