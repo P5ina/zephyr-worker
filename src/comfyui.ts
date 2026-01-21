@@ -4,8 +4,16 @@ import { nanoid } from 'nanoid';
 const COMFYUI_URL = process.env.COMFYUI_URL || 'http://127.0.0.1:8188';
 const COMFYUI_WS_URL = COMFYUI_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
+export interface ProgressInfo {
+	progress: number;
+	stage: string;
+	elapsedSeconds: number;
+	estimatedTotalSeconds: number;
+	estimatedRemainingSeconds: number;
+}
+
 export interface ProgressCallback {
-	(progress: number, stage: string): void;
+	(info: ProgressInfo): void;
 }
 
 export interface ComfyUIWorkflow {
@@ -41,6 +49,7 @@ export class ComfyUIClient {
 	private workflow: ComfyUIWorkflow | null = null;
 	private executedNodes: Set<string> = new Set();
 	private totalNodes: number = 0;
+	private startTime: number = 0;
 
 	constructor() {
 		this.clientId = nanoid();
@@ -160,7 +169,22 @@ export class ComfyUIClient {
 
 	private reportProgress(progress: number, stage: string): void {
 		if (this.onProgress) {
-			this.onProgress(progress, stage);
+			const elapsedSeconds = Math.round((Date.now() - this.startTime) / 1000);
+			let estimatedTotalSeconds = 0;
+			let estimatedRemainingSeconds = 0;
+
+			if (progress > 0 && progress < 100) {
+				estimatedTotalSeconds = Math.round((elapsedSeconds / progress) * 100);
+				estimatedRemainingSeconds = Math.max(0, estimatedTotalSeconds - elapsedSeconds);
+			}
+
+			this.onProgress({
+				progress,
+				stage,
+				elapsedSeconds,
+				estimatedTotalSeconds,
+				estimatedRemainingSeconds,
+			});
 		}
 	}
 
@@ -169,6 +193,7 @@ export class ComfyUIClient {
 		this.onProgress = onProgress || null;
 		this.executedNodes.clear();
 		this.totalNodes = Object.keys(workflow).length;
+		this.startTime = Date.now();
 
 		console.log(`[ComfyUI] Total nodes in workflow: ${this.totalNodes}`);
 

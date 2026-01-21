@@ -104,12 +104,15 @@ async function processJob(job: RotationJob): Promise<void> {
 		console.log(`${logPrefix} Prompt: "${job.prompt?.substring(0, 50)}..."`);
 
 		// Queue with progress tracking
-		const promptId = await client.queuePrompt(workflow, async (progress, stage) => {
-			console.log(`${logPrefix} Progress: ${progress}% - ${stage}`);
+		const promptId = await client.queuePrompt(workflow, async (info) => {
+			const timeInfo = info.estimatedRemainingSeconds > 0
+				? ` (~${Math.floor(info.estimatedRemainingSeconds / 60)}:${(info.estimatedRemainingSeconds % 60).toString().padStart(2, '0')} remaining)`
+				: '';
+			console.log(`${logPrefix} ${info.progress}% - ${info.stage}${timeInfo}`);
 			await db.update(rotationJob)
 				.set({
-					progress,
-					currentStage: stage,
+					progress: info.progress,
+					currentStage: `${info.stage}${timeInfo}`,
 				})
 				.where(eq(rotationJob.id, job.id));
 		});
