@@ -70,6 +70,7 @@ export class ComfyUIClient {
 	private totalNodes: number = 0;
 	private totalWeight: number = 0;
 	private completedWeight: number = 0;
+	private maxProgress: number = 0;  // Never go below this
 	private startTime: number = 0;
 
 	constructor() {
@@ -134,6 +135,7 @@ export class ComfyUIClient {
 						console.log(`[ComfyUI] Execution started`);
 						this.executedNodes.clear();
 						this.completedWeight = 0;
+						this.maxProgress = 0;
 						this.reportProgress(0, 'Starting...');
 					}
 					break;
@@ -211,17 +213,23 @@ export class ComfyUIClient {
 
 	private reportProgress(progress: number, stage: string): void {
 		if (this.onProgress) {
+			// Never let progress go backwards
+			if (progress > this.maxProgress) {
+				this.maxProgress = progress;
+			}
+			const finalProgress = Math.max(progress, this.maxProgress);
+
 			const elapsedSeconds = Math.round((Date.now() - this.startTime) / 1000);
 			let estimatedTotalSeconds = 0;
 			let estimatedRemainingSeconds = 0;
 
-			if (progress > 0 && progress < 100) {
-				estimatedTotalSeconds = Math.round((elapsedSeconds / progress) * 100);
+			if (finalProgress > 0 && finalProgress < 100) {
+				estimatedTotalSeconds = Math.round((elapsedSeconds / finalProgress) * 100);
 				estimatedRemainingSeconds = Math.max(0, estimatedTotalSeconds - elapsedSeconds);
 			}
 
 			this.onProgress({
-				progress,
+				progress: finalProgress,
 				stage,
 				elapsedSeconds,
 				estimatedTotalSeconds,
@@ -236,6 +244,7 @@ export class ComfyUIClient {
 		this.executedNodes.clear();
 		this.totalNodes = Object.keys(workflow).length;
 		this.completedWeight = 0;
+		this.maxProgress = 0;
 		this.startTime = Date.now();
 
 		// Calculate total weight for weighted progress
