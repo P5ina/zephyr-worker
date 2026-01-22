@@ -99,7 +99,7 @@ async function processRotationJob(job: RotationJob): Promise<void> {
 
 		// Set prompt (node 61) and seed (node 56)
 		if (workflow['61']?.inputs) workflow['61'].inputs.value = job.prompt || '';
-		if (workflow['56']?.inputs) workflow['56'].inputs.value = Math.floor(Math.random() * 2 ** 32);
+		if (workflow['56']?.inputs) workflow['56'].inputs.value = Math.floor(Math.random() * 2 ** 31);
 
 		console.log(`${logPrefix} Prompt: "${job.prompt?.substring(0, 50)}..."`);
 
@@ -181,7 +181,7 @@ async function processAssetJob(job: AssetGeneration): Promise<void> {
 				node.inputs.height = job.height;
 			}
 			if (node.class_type === 'KSampler' && node.inputs.seed !== undefined) {
-				node.inputs.seed = Math.floor(Math.random() * 2 ** 32);
+				node.inputs.seed = Math.floor(Math.random() * 2 ** 31);
 			}
 		}
 
@@ -280,7 +280,7 @@ async function processTextureJob(job: TextureGeneration): Promise<void> {
 		if (workflow['65']?.inputs) workflow['65'].inputs.text = fullPrompt;
 
 		// Set seed (node 64 is KSamplerAdvanced for base)
-		const seed = Math.floor(Math.random() * 2 ** 32);
+		const seed = Math.floor(Math.random() * 2 ** 31);
 		if (workflow['64']?.inputs) workflow['64'].inputs.noise_seed = seed;
 
 		console.log(`${logPrefix} Prompt: "${job.prompt?.substring(0, 50)}..."`);
