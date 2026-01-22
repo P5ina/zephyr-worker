@@ -1,0 +1,369 @@
+{
+  "9": {
+    "inputs": {
+      "filename_prefix": "basecolor",
+      "images": [
+        "40",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "14": {
+    "inputs": {
+      "filename_prefix": "normal",
+      "images": [
+        "30",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "16": {
+    "inputs": {
+      "filename_prefix": "height",
+      "images": [
+        "31",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "17": {
+    "inputs": {
+      "filename_prefix": "roughness",
+      "images": [
+        "33",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "18": {
+    "inputs": {
+      "filename_prefix": "metallic",
+      "images": [
+        "35",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "30": {
+    "inputs": {
+      "mode": "Color to Normals",
+      "color_to_normals_overlap": "SMALL",
+      "normals_to_curvature_blur_radius": "SMALLEST",
+      "normals_to_height_seamless": true,
+      "auto_download": true,
+      "image": [
+        "40",
+        0
+      ]
+    },
+    "class_type": "Deep Bump (mtb)",
+    "_meta": {
+      "title": "Deep Bump (mtb)"
+    }
+  },
+  "31": {
+    "inputs": {
+      "mode": "Normals to Height",
+      "color_to_normals_overlap": "SMALL",
+      "normals_to_curvature_blur_radius": "SMALLEST",
+      "normals_to_height_seamless": true,
+      "auto_download": true,
+      "image": [
+        "40",
+        0
+      ]
+    },
+    "class_type": "Deep Bump (mtb)",
+    "_meta": {
+      "title": "Deep Bump (mtb)"
+    }
+  },
+  "32": {
+    "inputs": {
+      "model_name": "roughness.pth"
+    },
+    "class_type": "LoadPix2PixModel",
+    "_meta": {
+      "title": "Load Pix2Pix Model"
+    }
+  },
+  "33": {
+    "inputs": {
+      "model": [
+        "32",
+        0
+      ],
+      "image": [
+        "40",
+        0
+      ]
+    },
+    "class_type": "Pix2PixInference",
+    "_meta": {
+      "title": "Pix2Pix Inference"
+    }
+  },
+  "34": {
+    "inputs": {
+      "model_name": "metallic.pth"
+    },
+    "class_type": "LoadPix2PixModel",
+    "_meta": {
+      "title": "Load Pix2Pix Model"
+    }
+  },
+  "35": {
+    "inputs": {
+      "model": [
+        "34",
+        0
+      ],
+      "image": [
+        "40",
+        0
+      ]
+    },
+    "class_type": "Pix2PixInference",
+    "_meta": {
+      "title": "Pix2Pix Inference"
+    }
+  },
+  "40": {
+    "inputs": {
+      "x_percent": 50,
+      "y_percent": 50,
+      "pixels": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "OffsetImage",
+    "_meta": {
+      "title": "Offset Image"
+    }
+  },
+  "41": {
+    "inputs": {
+      "images": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "53": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "55": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint - BASE"
+    }
+  },
+  "61": {
+    "inputs": {
+      "text": "3d render, perspective, angled view, blurry, text, labels, logos, brand names, realistic photo, depth of field, shadows, reflections",
+      "clip": [
+        "55",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "62": {
+    "inputs": {
+      "text": "seamless tileable texture, top-down flat view, no shadows, texture map",
+      "clip": [
+        "55",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "64": {
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": 315690659555732,
+      "steps": 25,
+      "cfg": 8,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "start_at_step": 0,
+      "end_at_step": 20,
+      "return_with_leftover_noise": "enable",
+      "model": [
+        "79",
+        0
+      ],
+      "positive": [
+        "62",
+        0
+      ],
+      "negative": [
+        "61",
+        0
+      ],
+      "latent_image": [
+        "53",
+        0
+      ]
+    },
+    "class_type": "KSamplerAdvanced",
+    "_meta": {
+      "title": "KSampler (Advanced) - BASE"
+    }
+  },
+  "65": {
+    "inputs": {
+      "text": "seamless tileable texture, top-down flat view, no shadows, texture map",
+      "clip": [
+        "68",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "66": {
+    "inputs": {
+      "text": "3d render, perspective, angled view, blurry, text, labels, logos, brand names, realistic photo, depth of field, shadows, reflections",
+      "clip": [
+        "68",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "67": {
+    "inputs": {
+      "add_noise": "disable",
+      "noise_seed": 0,
+      "steps": 25,
+      "cfg": 8,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "start_at_step": 20,
+      "end_at_step": 10000,
+      "return_with_leftover_noise": "disable",
+      "model": [
+        "80",
+        0
+      ],
+      "positive": [
+        "65",
+        0
+      ],
+      "negative": [
+        "66",
+        0
+      ],
+      "latent_image": [
+        "64",
+        0
+      ]
+    },
+    "class_type": "KSamplerAdvanced",
+    "_meta": {
+      "title": "KSampler (Advanced) - REFINER"
+    }
+  },
+  "68": {
+    "inputs": {
+      "ckpt_name": "sd_xl_refiner_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint - REFINER"
+    }
+  },
+  "78": {
+    "inputs": {
+      "tiling": "enable",
+      "samples": [
+        "67",
+        0
+      ],
+      "vae": [
+        "68",
+        2
+      ]
+    },
+    "class_type": "CircularVAEDecode",
+    "_meta": {
+      "title": "Circular VAE Decode (tile)"
+    }
+  },
+  "79": {
+    "inputs": {
+      "tiling": "enable",
+      "copy_model": "Modify in place",
+      "model": [
+        "55",
+        0
+      ]
+    },
+    "class_type": "SeamlessTile",
+    "_meta": {
+      "title": "Seamless Tile"
+    }
+  },
+  "80": {
+    "inputs": {
+      "tiling": "enable",
+      "copy_model": "Modify in place",
+      "model": [
+        "68",
+        0
+      ]
+    },
+    "class_type": "SeamlessTile",
+    "_meta": {
+      "title": "Seamless Tile"
+    }
+  }
+}

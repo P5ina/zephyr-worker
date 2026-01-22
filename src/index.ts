@@ -237,6 +237,15 @@ async function processAssetJob(job: AssetGeneration): Promise<void> {
 	}
 }
 
+// Texture output node mapping
+const TEXTURE_OUTPUT_NODES: Record<string, string> = {
+	'9': 'basecolor',
+	'14': 'normal',
+	'16': 'height',
+	'17': 'roughness',
+	'18': 'metallic',
+};
+
 // ============ TEXTURE JOBS ============
 async function processTextureJob(job: TextureGeneration): Promise<void> {
 	const logPrefix = `[Texture:${job.id.slice(0, 8)}]`;
@@ -261,10 +270,71 @@ async function processTextureJob(job: TextureGeneration): Promise<void> {
 			.set({ status: 'processing', currentStage: 'Starting...', progress: 0 })
 			.where(eq(textureGeneration.id, job.id));
 
-		// TODO: Implement texture workflow processing
-		// This will generate PBR maps (basecolor, normal, roughness, metallic, height)
+		const workflow = JSON.parse(JSON.stringify(workflows.texture)) as ComfyUIWorkflow;
 
-		throw new Error('Texture generation not yet implemented');
+		// Build the full prompt with texture-specific suffix
+		const fullPrompt = `${job.prompt}, seamless tileable texture, top-down flat view, no shadows, texture map`;
+
+		// Set prompts (nodes 62 and 65 are positive prompts for base and refiner)
+		if (workflow['62']?.inputs) workflow['62'].inputs.text = fullPrompt;
+		if (workflow['65']?.inputs) workflow['65'].inputs.text = fullPrompt;
+
+		// Set seed (node 64 is KSamplerAdvanced for base)
+		const seed = Math.floor(Math.random() * 2 ** 32);
+		if (workflow['64']?.inputs) workflow['64'].inputs.noise_seed = seed;
+
+		console.log(`${logPrefix} Prompt: "${job.prompt?.substring(0, 50)}..."`);
+
+		const promptId = await client.queuePrompt(workflow, async (info) => {
+			console.log(`${logPrefix} ${info.progress}% - ${info.stage}`);
+			await db.update(textureGeneration)
+				.set({ progress: info.progress, currentStage: formatProgress(info) })
+				.where(eq(textureGeneration.id, job.id));
+		});
+
+		const outputs = await client.waitForCompletion(promptId, 600000);
+
+		await db.update(textureGeneration)
+			.set({ progress: 95, currentStage: 'Uploading textures...' })
+			.where(eq(textureGeneration.id, job.id));
+
+		// Extract and upload all PBR maps
+		const uploadedUrls: Record<string, string> = {};
+		for (const [nodeId, output] of Object.entries(outputs)) {
+			const mapType = TEXTURE_OUTPUT_NODES[nodeId];
+			const outputData = output as { images?: Array<{ filename: string; subfolder: string; type: string }> };
+
+			if (mapType && outputData.images?.length) {
+				const img = outputData.images[0];
+				const imageData = await client.getImage(img.filename, img.subfolder, img.type);
+				uploadedUrls[mapType] = await uploadToBlob(imageData, `textures/${job.id}_${mapType}.png`);
+				console.log(`${logPrefix} Uploaded ${mapType}`);
+			}
+		}
+
+		// Verify we got all maps
+		const requiredMaps = ['basecolor', 'normal', 'height', 'roughness', 'metallic'];
+		const missingMaps = requiredMaps.filter(m => !uploadedUrls[m]);
+		if (missingMaps.length > 0) {
+			throw new Error(`Missing texture maps: ${missingMaps.join(', ')}`);
+		}
+
+		await db.update(textureGeneration)
+			.set({
+				status: 'completed',
+				progress: 100,
+				currentStage: 'Complete',
+				basecolorUrl: uploadedUrls.basecolor,
+				normalUrl: uploadedUrls.normal,
+				heightUrl: uploadedUrls.height,
+				roughnessUrl: uploadedUrls.roughness,
+				metallicUrl: uploadedUrls.metallic,
+				seed,
+				completedAt: new Date(),
+			})
+			.where(eq(textureGeneration.id, job.id));
+
+		console.log(`${logPrefix} Completed`);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error';
 		console.error(`${logPrefix} Failed: ${message}`);
