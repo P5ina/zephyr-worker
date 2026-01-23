@@ -8,10 +8,10 @@
       "mask_offset": 0,
       "invert_output": false,
       "refine_foreground": false,
-      "background": "Alpha",
-      "background_color": "#222222",
+      "background": "Color",
+      "background_color": "#ffffff",
       "image": [
-        "52",
+        "134",
         0
       ]
     },
@@ -32,190 +32,376 @@
       "title": "Preview Image"
     }
   },
-  "36": {
+  "101": {
     "inputs": {
-      "checkpoint": "model.ckpt",
-      "device": "cuda:0"
+      "ckpt_name": "sv3d_p.safetensors"
     },
-    "class_type": "LoadTripoSRModel",
+    "class_type": "CheckpointLoaderSimple",
     "_meta": {
-      "title": "Load TripoSR Model"
+      "title": "Load Checkpoint"
     }
   },
-  "37": {
+  "102": {
     "inputs": {
-      "resolution": 320,
-      "unload_model": true,
+      "clip_name": "CLIP-ViT-H-14.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "Load CLIP Vision"
+    }
+  },
+  "104": {
+    "inputs": {
+      "seed": 107158909184492,
+      "steps": 20,
+      "cfg": 3,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
       "model": [
-        "36",
+        "101",
         0
       ],
+      "positive": [
+        "113",
+        0
+      ],
+      "negative": [
+        "113",
+        1
+      ],
+      "latent_image": [
+        "113",
+        2
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "105": {
+    "inputs": {
+      "samples": [
+        "104",
+        0
+      ],
+      "vae": [
+        "101",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "112": {
+    "inputs": {
+      "images": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "113": {
+    "inputs": {
+      "width": 576,
+      "height": 576,
+      "video_frames": 21,
+      "elevation": 20,
+      "clip_vision": [
+        "102",
+        0
+      ],
+      "init_image": [
+        "2",
+        0
+      ],
+      "vae": [
+        "101",
+        2
+      ]
+    },
+    "class_type": "SV3D_Conditioning",
+    "_meta": {
+      "title": "SV3D_Conditioning"
+    }
+  },
+  "120": {
+    "inputs": {
+      "images.image0": [
+        "121",
+        0
+      ],
+      "images.image1": [
+        "122",
+        0
+      ],
+      "images.image2": [
+        "123",
+        0
+      ],
+      "images.image3": [
+        "124",
+        0
+      ],
+      "images.image4": [
+        "125",
+        0
+      ],
+      "images.image5": [
+        "126",
+        0
+      ],
+      "images.image6": [
+        "127",
+        0
+      ],
+      "images.image7": [
+        "128",
+        0
+      ]
+    },
+    "class_type": "BatchImagesNode",
+    "_meta": {
+      "title": "Batch Images"
+    }
+  },
+  "121": {
+    "inputs": {
+      "batch_index": 0,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "122": {
+    "inputs": {
+      "batch_index": 3,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "123": {
+    "inputs": {
+      "batch_index": 5,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "124": {
+    "inputs": {
+      "batch_index": 8,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "125": {
+    "inputs": {
+      "batch_index": 10,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "126": {
+    "inputs": {
+      "batch_index": 13,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "127": {
+    "inputs": {
+      "batch_index": 15,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "128": {
+    "inputs": {
+      "batch_index": 18,
+      "length": 1,
+      "image": [
+        "105",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "129": {
+    "inputs": {
+      "filename_prefix": "rotation",
+      "images": [
+        "170",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "130": {
+    "inputs": {
+      "upscale_model": [
+        "131",
+        0
+      ],
+      "image": [
+        "120",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "Upscale Image (using Model)"
+    }
+  },
+  "131": {
+    "inputs": {
+      "model_name": "4x-UltraSharp.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "Load Upscale Model"
+    }
+  },
+  "134": {
+    "inputs": {
+      "image": "input.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "159": {
+    "inputs": {
+      "upscale_method": "area",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled",
+      "image": [
+        "130",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "Upscale Image"
+    }
+  },
+  "160": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "161": {
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "class_type": "IPAdapterModelLoader",
+    "_meta": {
+      "title": "IPAdapter Model Loader"
+    }
+  },
+  "163": {
+    "inputs": {
+      "interpolation": "LANCZOS",
+      "crop_position": "top",
+      "sharpening": 0,
       "image": [
         "2",
         0
       ]
     },
-    "class_type": "ImageTo3DMesh",
+    "class_type": "PrepImageForClipVision",
     "_meta": {
-      "title": "Image to 3D Mesh"
+      "title": "Prep Image For ClipVision"
     }
   },
-  "38": {
+  "165": {
     "inputs": {
-      "render_size": 1024,
-      "elevation": 0,
-      "distance": 1.8,
-      "background_color": "white",
-      "auto_align": false,
-      "mesh_pitch": 0,
-      "mesh_roll": 0,
-      "mesh": [
-        "37",
-        0
-      ]
-    },
-    "class_type": "RenderMesh8Directions",
-    "_meta": {
-      "title": "Render Mesh 8 Directions"
-    }
-  },
-  "40": {
-    "inputs": {
-      "filename_prefix": "sprite_NE",
-      "images": [
-        "38",
-        1
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "41": {
-    "inputs": {
-      "filename_prefix": "sprite_E",
-      "images": [
-        "38",
-        2
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "42": {
-    "inputs": {
-      "filename_prefix": "sprite_SE",
-      "images": [
-        "38",
-        3
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "43": {
-    "inputs": {
-      "filename_prefix": "sprite_S",
-      "images": [
-        "38",
-        4
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "45": {
-    "inputs": {
-      "unet_name": "flux1-schnell.safetensors",
-      "weight_dtype": "default"
-    },
-    "class_type": "UNETLoader",
-    "_meta": {
-      "title": "Load Diffusion Model"
-    }
-  },
-  "46": {
-    "inputs": {
-      "clip_name1": "clip_l.safetensors",
-      "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
-      "type": "flux",
-      "device": "default"
-    },
-    "class_type": "DualCLIPLoader",
-    "_meta": {
-      "title": "DualCLIPLoader"
-    }
-  },
-  "47": {
-    "inputs": {
-      "vae_name": "ae.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Load VAE"
-    }
-  },
-  "49": {
-    "inputs": {
-      "text": [
-        "72",
-        0
-      ],
-      "clip": [
-        "46",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
-  },
-  "50": {
-    "inputs": {
-      "guidance": 3.5,
-      "conditioning": [
-        "49",
-        0
-      ]
-    },
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "FluxGuidance"
-    }
-  },
-  "51": {
-    "inputs": {
-      "seed": [
-        "56",
-        0
-      ],
-      "steps": 4,
-      "cfg": 1,
+      "seed": 78926918716135,
+      "steps": 8,
+      "cfg": 2,
       "sampler_name": "euler",
       "scheduler": "simple",
-      "denoise": 1,
+      "denoise": 0.4,
       "model": [
-        "45",
+        "172",
         0
       ],
       "positive": [
-        "50",
+        "166",
         0
       ],
       "negative": [
-        "49",
-        0
+        "166",
+        1
       ],
       "latent_image": [
-        "57",
+        "171",
         0
       ]
     },
@@ -224,15 +410,77 @@
       "title": "KSampler"
     }
   },
-  "52": {
+  "166": {
+    "inputs": {
+      "strength": 0.55,
+      "start_percent": 0,
+      "end_percent": 1,
+      "positive": [
+        "167",
+        0
+      ],
+      "negative": [
+        "168",
+        0
+      ],
+      "control_net": [
+        "169",
+        0
+      ],
+      "image": [
+        "159",
+        0
+      ]
+    },
+    "class_type": "ControlNetApplyAdvanced",
+    "_meta": {
+      "title": "Apply ControlNet"
+    }
+  },
+  "167": {
+    "inputs": {
+      "text": "sharp, detailed, clean edges, high quality",
+      "clip": [
+        "160",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "168": {
+    "inputs": {
+      "text": "blurry, noisy, artifacts, low quality, jpeg",
+      "clip": [
+        "160",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "169": {
+    "inputs": {
+      "control_net_name": "TTPLANET_Controlnet_Tile_realistic_v2_fp16.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "Load ControlNet Model"
+    }
+  },
+  "170": {
     "inputs": {
       "samples": [
-        "51",
+        "165",
         0
       ],
       "vae": [
-        "47",
-        0
+        "160",
+        2
       ]
     },
     "class_type": "VAEDecode",
@@ -240,99 +488,59 @@
       "title": "VAE Decode"
     }
   },
-  "53": {
+  "171": {
     "inputs": {
-      "filename_prefix": "sprite_SW",
-      "images": [
-        "38",
-        5
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "54": {
-    "inputs": {
-      "filename_prefix": "sprite_W",
-      "images": [
-        "38",
-        6
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "55": {
-    "inputs": {
-      "filename_prefix": "sprite_NW",
-      "images": [
-        "38",
-        7
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "56": {
-    "inputs": {
-      "value": 597944388121890
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Seed"
-    }
-  },
-  "57": {
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
-    },
-    "class_type": "EmptyLatentImage",
-    "_meta": {
-      "title": "Empty Latent Image"
-    }
-  },
-  "61": {
-    "inputs": {
-      "value": "knight, full body shot, white background, isolated"
-    },
-    "class_type": "PrimitiveStringMultiline",
-    "_meta": {
-      "title": "Prompt"
-    }
-  },
-  "69": {
-    "inputs": {
-      "filename_prefix": "sprite_N",
-      "images": [
-        "38",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
-  "72": {
-    "inputs": {
-      "string_a": [
-        "61",
+      "pixels": [
+        "159",
         0
       ],
-      "string_b": ", front view",
-      "delimiter": ""
+      "vae": [
+        "160",
+        2
+      ]
     },
-    "class_type": "StringConcatenate",
+    "class_type": "VAEEncode",
     "_meta": {
-      "title": "Concatenate"
+      "title": "VAE Encode"
+    }
+  },
+  "172": {
+    "inputs": {
+      "weight": 0.6,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "model": [
+        "160",
+        0
+      ],
+      "ipadapter": [
+        "161",
+        0
+      ],
+      "image": [
+        "163",
+        0
+      ],
+      "clip_vision": [
+        "173",
+        0
+      ]
+    },
+    "class_type": "IPAdapterAdvanced",
+    "_meta": {
+      "title": "IPAdapter Advanced"
+    }
+  },
+  "173": {
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "Load CLIP Vision"
     }
   }
 }

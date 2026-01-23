@@ -39,11 +39,10 @@ const workflows: Record<string, ComfyUIWorkflow | null> = {
 	texture: loadWorkflow('texture'),
 };
 
-// Rotation output node mapping
-const ROTATION_OUTPUT_NODES: Record<string, string> = {
-	'69': 'n', '40': 'ne', '41': 'e', '42': 'se',
-	'43': 's', '53': 'sw', '54': 'w', '55': 'nw',
-};
+// SV3D workflow outputs all 8 directions from node 129 as a batch
+// Frame indices in the batch correspond to directions:
+// 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW
+const ROTATION_DIRECTIONS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] as const;
 
 async function uploadToBlob(data: Buffer, filename: string): Promise<string> {
 	if (!BLOB_READ_WRITE_TOKEN) {
@@ -80,10 +79,14 @@ function formatProgress(info: ProgressInfo): string {
 // ============ ROTATION JOBS ============
 async function processRotationJob(job: RotationJob): Promise<void> {
 	const logPrefix = `[Rotate:${job.id.slice(0, 8)}]`;
-	console.log(`${logPrefix} Processing (mode: ${job.mode})`);
+	console.log(`${logPrefix} Processing`);
 
 	if (!workflows.rotate) {
 		throw new Error('Rotation workflow not loaded');
+	}
+
+	if (!job.inputImageUrl) {
+		throw new Error('No input image provided');
 	}
 
 	const client = new ComfyUIClient();
@@ -92,41 +95,66 @@ async function processRotationJob(job: RotationJob): Promise<void> {
 		await client.connect();
 
 		await db.update(rotationJob)
-			.set({ status: 'processing', startedAt: new Date(), currentStage: 'Starting...', progress: 0 })
+			.set({ status: 'processing', startedAt: new Date(), currentStage: 'Downloading input image...', progress: 0 })
 			.where(eq(rotationJob.id, job.id));
+
+		// Download input image from URL
+		console.log(`${logPrefix} Downloading input image...`);
+		const imageResponse = await fetch(job.inputImageUrl);
+		if (!imageResponse.ok) {
+			throw new Error(`Failed to download input image: ${imageResponse.status}`);
+		}
+		const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+		// Upload image to ComfyUI
+		await db.update(rotationJob)
+			.set({ currentStage: 'Uploading to ComfyUI...', progress: 5 })
+			.where(eq(rotationJob.id, job.id));
+
+		const inputFilename = await client.uploadImage(imageBuffer, `input_${job.id}.png`);
+		console.log(`${logPrefix} Uploaded input image as: ${inputFilename}`);
 
 		const workflow = JSON.parse(JSON.stringify(workflows.rotate)) as ComfyUIWorkflow;
 
-		// Set prompt (node 61) and seed (node 56)
-		if (workflow['61']?.inputs) workflow['61'].inputs.value = job.prompt || '';
-		if (workflow['56']?.inputs) workflow['56'].inputs.value = Math.floor(Math.random() * 2 ** 31);
+		// Set input image (node 134) and seeds (nodes 104 and 165)
+		if (workflow['134']?.inputs) workflow['134'].inputs.image = inputFilename;
+		if (workflow['104']?.inputs) workflow['104'].inputs.seed = Math.floor(Math.random() * 2 ** 31);
+		if (workflow['165']?.inputs) workflow['165'].inputs.seed = Math.floor(Math.random() * 2 ** 31);
 
-		console.log(`${logPrefix} Prompt: "${job.prompt?.substring(0, 50)}..."`);
+		await db.update(rotationJob)
+			.set({ currentStage: 'Generating rotations with SV3D...', progress: 10 })
+			.where(eq(rotationJob.id, job.id));
 
 		const promptId = await client.queuePrompt(workflow, async (info) => {
-			console.log(`${logPrefix} ${info.progress}% - ${info.stage}`);
+			// Scale progress: 10-90% for generation
+			const scaledProgress = 10 + Math.floor(info.progress * 0.8);
+			console.log(`${logPrefix} ${scaledProgress}% - ${info.stage}`);
 			await db.update(rotationJob)
-				.set({ progress: info.progress, currentStage: formatProgress(info) })
+				.set({ progress: scaledProgress, currentStage: formatProgress(info) })
 				.where(eq(rotationJob.id, job.id));
 		});
 
-		const outputs = await client.waitForCompletion(promptId, 600000);
+		const outputs = await client.waitForCompletion(promptId, 900000); // 15 min timeout for SV3D
 
 		await db.update(rotationJob)
-			.set({ progress: 95, currentStage: 'Uploading images...' })
+			.set({ progress: 92, currentStage: 'Uploading images...' })
 			.where(eq(rotationJob.id, job.id));
 
+		// Find output from node 129 (SaveImage with all 8 directions)
 		const uploadedUrls: Record<string, string> = {};
-		for (const [nodeId, output] of Object.entries(outputs)) {
-			const direction = ROTATION_OUTPUT_NODES[nodeId];
-			const outputData = output as { images?: Array<{ filename: string; subfolder: string; type: string }> };
+		const outputNode = outputs['129'] as { images?: Array<{ filename: string; subfolder: string; type: string }> } | undefined;
 
-			if (direction && outputData.images?.length) {
-				const img = outputData.images[0];
+		if (outputNode?.images?.length) {
+			// The output contains 8 images in batch order
+			for (let i = 0; i < Math.min(outputNode.images.length, 8); i++) {
+				const img = outputNode.images[i];
+				const direction = ROTATION_DIRECTIONS[i];
 				const imageData = await client.getImage(img.filename, img.subfolder, img.type);
 				uploadedUrls[direction] = await uploadToBlob(imageData, `rotations/${job.id}_${direction}.png`);
 				console.log(`${logPrefix} Uploaded ${direction.toUpperCase()}`);
 			}
+		} else {
+			throw new Error('No output images generated from workflow');
 		}
 
 		await db.update(rotationJob)
@@ -171,18 +199,20 @@ async function processAssetJob(job: AssetGeneration): Promise<void> {
 
 		const workflow = JSON.parse(JSON.stringify(workflows.sprite)) as ComfyUIWorkflow;
 
-		// Find and set prompt/dimensions in workflow (adjust node IDs as needed)
-		for (const [nodeId, node] of Object.entries(workflow)) {
-			if (node.class_type === 'CLIPTextEncode' && node.inputs.text !== undefined) {
-				node.inputs.text = job.prompt;
-			}
-			if ((node.class_type === 'EmptyLatentImage' || node.class_type === 'EmptySD3LatentImage') && node.inputs.width !== undefined) {
-				node.inputs.width = job.width;
-				node.inputs.height = job.height;
-			}
-			if (node.class_type === 'KSampler' && node.inputs.seed !== undefined) {
-				node.inputs.seed = Math.floor(Math.random() * 2 ** 31);
-			}
+		// Set prompt (node 45)
+		if (workflow['45']?.inputs) {
+			workflow['45'].inputs.text = job.prompt;
+		}
+
+		// Set dimensions (node 40)
+		if (workflow['40']?.inputs) {
+			workflow['40'].inputs.width = job.width;
+			workflow['40'].inputs.height = job.height;
+		}
+
+		// Set seed (node 41)
+		if (workflow['41']?.inputs) {
+			workflow['41'].inputs.noise_seed = Math.floor(Math.random() * 2 ** 31);
 		}
 
 		console.log(`${logPrefix} Prompt: "${job.prompt?.substring(0, 50)}..."`);
@@ -200,15 +230,24 @@ async function processAssetJob(job: AssetGeneration): Promise<void> {
 			.set({ progress: 95, currentStage: 'Uploading image...' })
 			.where(eq(assetGeneration.id, job.id));
 
-		// Find output image
+		// Find output image from save_image node
 		let imageUrl: string | null = null;
-		for (const output of Object.values(outputs)) {
-			const outputData = output as { images?: Array<{ filename: string; subfolder: string; type: string }> };
-			if (outputData.images?.length) {
-				const img = outputData.images[0];
-				const imageData = await client.getImage(img.filename, img.subfolder, img.type);
-				imageUrl = await uploadToBlob(imageData, `assets/${job.id}.png`);
-				break;
+		const saveImageOutput = outputs['save_image'] as { images?: Array<{ filename: string; subfolder: string; type: string }> } | undefined;
+
+		if (saveImageOutput?.images?.length) {
+			const img = saveImageOutput.images[0];
+			const imageData = await client.getImage(img.filename, img.subfolder, img.type);
+			imageUrl = await uploadToBlob(imageData, `assets/${job.id}.png`);
+		} else {
+			// Fallback: search all outputs
+			for (const output of Object.values(outputs)) {
+				const outputData = output as { images?: Array<{ filename: string; subfolder: string; type: string }> };
+				if (outputData.images?.length) {
+					const img = outputData.images[0];
+					const imageData = await client.getImage(img.filename, img.subfolder, img.type);
+					imageUrl = await uploadToBlob(imageData, `assets/${job.id}.png`);
+					break;
+				}
 			}
 		}
 

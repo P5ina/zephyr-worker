@@ -39,6 +39,25 @@ const NODE_STAGES: Record<string, string> = {
 	'ControlNetApplyAdvanced': 'Applying ControlNet',
 	'Canny': 'Detecting edges',
 	'SaveImage': 'Saving image',
+	// SV3D workflow
+	'SV3D_Conditioning': 'Preparing SV3D conditioning',
+	'CLIPVisionLoader': 'Loading CLIP Vision',
+	'CheckpointLoaderSimple': 'Loading model',
+	'ImageFromBatch': 'Extracting frame',
+	'BatchImagesNode': 'Batching images',
+	'ImageUpscaleWithModel': 'Upscaling images',
+	'UpscaleModelLoader': 'Loading upscale model',
+	'ImageScale': 'Scaling images',
+	'IPAdapterModelLoader': 'Loading IPAdapter',
+	'IPAdapterAdvanced': 'Applying IPAdapter',
+	'PrepImageForClipVision': 'Preparing for CLIP Vision',
+	'LoadImage': 'Loading input image',
+	// Flux workflow nodes
+	'SamplerCustomAdvanced': 'Generating image',
+	'RandomNoise': 'Generating noise',
+	'KSamplerSelect': 'Selecting sampler',
+	'BasicScheduler': 'Setting up scheduler',
+	'BasicGuider': 'Setting up guidance',
 };
 
 // Approximate execution time weights for node types (relative)
@@ -46,18 +65,36 @@ const NODE_WEIGHTS: Record<string, number> = {
 	'KSampler': 30,           // Main generation - heaviest
 	'ImageTo3DMesh': 20,      // 3D mesh generation
 	'RenderMesh8Directions': 15,
+	'SV3D_Conditioning': 5,   // SV3D prep
+	'ImageUpscaleWithModel': 10, // Upscaling is heavy
+	'IPAdapterAdvanced': 5,
 	'RMBG': 5,
 	'VAEDecode': 3,
 	'VAEEncode': 2,
 	'UNETLoader': 2,
 	'LoadTripoSRModel': 2,
+	'CheckpointLoaderSimple': 3,
+	'UpscaleModelLoader': 2,
+	'IPAdapterModelLoader': 2,
 	'ControlNetLoader': 1,
 	'DualCLIPLoader': 1,
 	'VAELoader': 1,
 	'CLIPTextEncode': 1,
+	'CLIPVisionLoader': 1,
 	'Canny': 1,
 	'SaveImage': 1,
 	'PreviewImage': 1,
+	'ImageFromBatch': 1,
+	'BatchImagesNode': 1,
+	'ImageScale': 1,
+	'PrepImageForClipVision': 1,
+	'LoadImage': 1,
+	// Flux workflow nodes
+	'SamplerCustomAdvanced': 30,  // Main generation
+	'RandomNoise': 1,
+	'KSamplerSelect': 1,
+	'BasicScheduler': 1,
+	'BasicGuider': 1,
 };
 
 export class ComfyUIClient {
@@ -310,6 +347,25 @@ export class ComfyUIClient {
 
 		const arrayBuffer = await response.arrayBuffer();
 		return Buffer.from(arrayBuffer);
+	}
+
+	async uploadImage(imageData: Buffer, filename: string): Promise<string> {
+		const formData = new FormData();
+		formData.append('image', new Blob([imageData], { type: 'image/png' }), filename);
+		formData.append('overwrite', 'true');
+
+		const response = await fetch(`${COMFYUI_URL}/upload/image`, {
+			method: 'POST',
+			body: formData,
+		});
+
+		if (!response.ok) {
+			const text = await response.text();
+			throw new Error(`Failed to upload image: ${response.status} - ${text}`);
+		}
+
+		const result = await response.json() as { name: string; subfolder: string; type: string };
+		return result.name;
 	}
 
 	async checkHealth(): Promise<boolean> {
