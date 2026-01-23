@@ -21,6 +21,7 @@ export const rotationJob = pgTable('rotation_job', {
 	startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }),
 	prompt: text('prompt'),
 	inputImageUrl: text('input_image_url'),
+	elevation: integer('elevation').notNull().default(20),
 	rotationN: text('rotation_n'),
 	rotationNE: text('rotation_ne'),
 	rotationE: text('rotation_e'),

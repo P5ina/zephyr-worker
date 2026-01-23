@@ -116,10 +116,11 @@ async function processRotationJob(job: RotationJob): Promise<void> {
 
 		const workflow = JSON.parse(JSON.stringify(workflows.rotate)) as ComfyUIWorkflow;
 
-		// Set input image (node 134) and seeds (nodes 104 and 165)
+		// Set input image (node 134), seeds (nodes 104 and 165), and elevation (node 113)
 		if (workflow['134']?.inputs) workflow['134'].inputs.image = inputFilename;
 		if (workflow['104']?.inputs) workflow['104'].inputs.seed = Math.floor(Math.random() * 2 ** 31);
 		if (workflow['165']?.inputs) workflow['165'].inputs.seed = Math.floor(Math.random() * 2 ** 31);
+		if (workflow['113']?.inputs) workflow['113'].inputs.elevation = job.elevation ?? 20;
 
 		await db.update(rotationJob)
 			.set({ currentStage: 'Generating rotations with SV3D...', progress: 10 })

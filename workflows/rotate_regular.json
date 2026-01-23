@@ -52,7 +52,7 @@
   },
   "104": {
     "inputs": {
-      "seed": 107158909184492,
+      "seed": 341525804005248,
       "steps": 20,
       "cfg": 3,
       "sampler_name": "euler",
@@ -288,7 +288,7 @@
     "inputs": {
       "filename_prefix": "rotation",
       "images": [
-        "170",
+        "174",
         0
       ]
     },
@@ -382,7 +382,7 @@
   },
   "165": {
     "inputs": {
-      "seed": 78926918716135,
+      "seed": 860011019183987,
       "steps": 8,
       "cfg": 2,
       "sampler_name": "euler",
@@ -541,6 +541,27 @@
     "class_type": "CLIPVisionLoader",
     "_meta": {
       "title": "Load CLIP Vision"
+    }
+  },
+  "174": {
+    "inputs": {
+      "model": "RMBG-2.0",
+      "sensitivity": 1,
+      "process_res": 1024,
+      "mask_blur": 0,
+      "mask_offset": 0,
+      "invert_output": false,
+      "refine_foreground": false,
+      "background": "Alpha",
+      "background_color": "#222222",
+      "image": [
+        "170",
+        0
+      ]
+    },
+    "class_type": "RMBG",
+    "_meta": {
+      "title": "Remove Background (RMBG)"
     }
   }
 }
