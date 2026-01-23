@@ -351,7 +351,7 @@ export class ComfyUIClient {
 
 	async uploadImage(imageData: Buffer, filename: string): Promise<string> {
 		const formData = new FormData();
-		formData.append('image', new Blob([imageData], { type: 'image/png' }), filename);
+		formData.append('image', new Blob([new Uint8Array(imageData)], { type: 'image/png' }), filename);
 		formData.append('overwrite', 'true');
 
 		const response = await fetch(`${COMFYUI_URL}/upload/image`, {
